@@ -1,0 +1,86 @@
+---
+title: "Question2dataprocessing"
+author: "Runhui Xu"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(haven)
+
+data = read_xpt("./depression.XPT")
+demo = read_xpt("./demographicinfo.XPT")
+
+
+```
+
+```{r}
+data=data[,1:10]
+data=na.omit(data)
+
+valid_values <- c(0, 1, 2, 3)
+rows_to_select <- apply(data[,-1], 1, function(row) all(row %in% valid_values))
+data <- data[rows_to_select, ]
+data$score=rowSums(data[, 2:9])
+#hist(data$score)
+#selected_rows <- subset(data, score > 10)
+
+```
+
+```{r}
+
+merged_df <- merge(data, demo, by = "SEQN",all=FALSE)
+
+
+names(merged_df)[names(merged_df) == "INDFMPIR"] <- "ratetopoverty"
+names(merged_df)[names(merged_df) == "DMDMARTZ"] <- "martial"
+names(merged_df)[names(merged_df) == "RIDEXPRG"] <- "pregancy"
+names(merged_df)[names(merged_df) == "DMDEDUC2"] <- "education"
+names(merged_df)[names(merged_df) == "RIAGENDR"] <- "gender"
+names(merged_df)[names(merged_df) == "RIDAGEYR"] <- "age"
+
+
+```
+
+```{r}
+merged_df<-na.omit(merged_df[,c("SEQN","ratetopoverty","martial","education","score","gender","age")])
+
+merged_df$depression = merged_df$score>=10
+merged_df$depression = as.factor(merged_df$depression)
+```
+
+
+```{r}
+merged_df <- merged_df[!(merged_df$education == 7 | merged_df$education == 9), ]
+merged_df <- merged_df[!(merged_df$martial == 77 | merged_df$martial == 99), ]
+```
+
+
+```{r}
+
+library(dplyr)
+merged_df$income <- scale(merged_df$ratetopoverty)
+
+merged_df$educationidx <- scale(merged_df$education)
+
+merged_df$martial<- as.factor(merged_df$martial)
+martial_dummies <- model.matrix(~martial-1,merged_df) %>% as.data.frame()
+#merged_df$martial
+merged_df<-cbind(merged_df,martial_dummies)
+```
+
+```{r}
+merged_df$gender<-as.factor(merged_df$gender)
+gender_dummies <- model.matrix(~gender-1,merged_df) %>% as.data.frame()
+#merged_df$gender
+merged_df<-cbind(merged_df,gender_dummies)
+```
+
+
+```{r}
+write.csv(merged_df, "./knndata.csv", row.names = FALSE)
+```
+
